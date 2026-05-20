@@ -1,0 +1,180 @@
+<svg width="1700" height="1280" viewBox="0 0 1700 1280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1700" y2="1280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6F4EF"/>
+      <stop offset="1" stop-color="#EEF3F8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#443C31" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 40px Arial, sans-serif; fill: #1E2430; }
+      .subtitle { font: 600 20px Arial, sans-serif; fill: #657083; letter-spacing: 1.5px; }
+      .tableTitle { font: 700 24px Arial, sans-serif; fill: #1E2430; }
+      .meta { font: 500 16px Arial, sans-serif; fill: #677184; }
+      .attr { font: 500 18px Arial, sans-serif; fill: #28303B; }
+      .note { font: 500 16px Arial, sans-serif; fill: #5F6A7C; }
+      .pk { fill: #AF4A24; font-weight: 700; }
+      .fk { fill: #2964B4; font-weight: 700; }
+      .label { font: 700 15px Arial, sans-serif; fill: #415068; letter-spacing: 0.8px; }
+      .cardStroke { stroke: #D6DCE7; stroke-width: 2; }
+      .line { stroke: #5A677D; stroke-width: 3; fill: none; }
+      .arrow { stroke: #5A677D; stroke-width: 3; fill: none; marker-end: url(#marker); }
+    </style>
+    <marker id="marker" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#5A677D"/>
+    </marker>
+  </defs>
+
+  <rect width="1700" height="1280" fill="url(#bg)"/>
+
+  <text x="850" y="70" text-anchor="middle" class="subtitle">DATABASE SCHEMA DIAGRAM</text>
+  <text x="850" y="120" text-anchor="middle" class="title">Developer Project &amp; Task Tracker (Mini Jira)</text>
+  <text x="850" y="154" text-anchor="middle" class="meta">Clean schema layout matching the Spring Boot + MySQL project</text>
+
+  <!-- USERS -->
+  <g filter="url(#shadow)">
+    <rect x="90" y="220" width="360" height="300" rx="22" fill="#F8FFFA" class="cardStroke"/>
+  </g>
+  <rect x="90" y="220" width="360" height="64" rx="22" fill="#DFF1E3"/>
+  <text x="120" y="260" class="tableTitle">USERS</text>
+  <line x1="90" y1="284" x2="450" y2="284" stroke="#C6E4CC" stroke-width="2"/>
+  <text x="120" y="325" class="attr"><tspan class="pk">PK</tspan> id</text>
+  <text x="120" y="360" class="attr">name</text>
+  <text x="120" y="395" class="attr">email (unique)</text>
+  <text x="120" y="430" class="attr">password</text>
+  <text x="120" y="465" class="attr">role</text>
+  <text x="120" y="500" class="attr">created_at</text>
+
+  <!-- PROJECTS -->
+  <g filter="url(#shadow)">
+    <rect x="670" y="170" width="380" height="250" rx="22" fill="#FFFDF8" class="cardStroke"/>
+  </g>
+  <rect x="670" y="170" width="380" height="64" rx="22" fill="#F7E7BA"/>
+  <text x="700" y="210" class="tableTitle">PROJECTS</text>
+  <line x1="670" y1="234" x2="1050" y2="234" stroke="#E9D7A1" stroke-width="2"/>
+  <text x="700" y="275" class="attr"><tspan class="pk">PK</tspan> id</text>
+  <text x="700" y="310" class="attr">name</text>
+  <text x="700" y="345" class="attr">description</text>
+  <text x="700" y="380" class="attr"><tspan class="fk">FK</tspan> created_by -&gt; users.id</text>
+  <text x="700" y="415" class="attr">created_at</text>
+
+  <!-- PROJECT MEMBERS -->
+  <g filter="url(#shadow)">
+    <rect x="1250" y="170" width="370" height="230" rx="22" fill="#FCF9FF" class="cardStroke"/>
+  </g>
+  <rect x="1250" y="170" width="370" height="64" rx="22" fill="#E9DFFD"/>
+  <text x="1280" y="210" class="tableTitle">PROJECT_MEMBERS</text>
+  <line x1="1250" y1="234" x2="1620" y2="234" stroke="#DACCF4" stroke-width="2"/>
+  <text x="1280" y="275" class="attr"><tspan class="pk">PK</tspan> id</text>
+  <text x="1280" y="310" class="attr"><tspan class="fk">FK</tspan> project_id -&gt; projects.id</text>
+  <text x="1280" y="345" class="attr"><tspan class="fk">FK</tspan> user_id -&gt; users.id</text>
+  <text x="1280" y="380" class="attr">added_at</text>
+
+  <!-- TASKS -->
+  <g filter="url(#shadow)">
+    <rect x="640" y="520" width="440" height="420" rx="22" fill="#FFF8F8" class="cardStroke"/>
+  </g>
+  <rect x="640" y="520" width="440" height="64" rx="22" fill="#F6D9DE"/>
+  <text x="670" y="560" class="tableTitle">TASKS</text>
+  <line x1="640" y1="584" x2="1080" y2="584" stroke="#E8C2CA" stroke-width="2"/>
+  <text x="670" y="625" class="attr"><tspan class="pk">PK</tspan> id</text>
+  <text x="670" y="660" class="attr">title</text>
+  <text x="670" y="695" class="attr">description</text>
+  <text x="670" y="730" class="attr">status</text>
+  <text x="670" y="765" class="attr">priority</text>
+  <text x="670" y="800" class="attr">deadline</text>
+  <text x="670" y="835" class="attr"><tspan class="fk">FK</tspan> project_id -&gt; projects.id</text>
+  <text x="670" y="870" class="attr"><tspan class="fk">FK</tspan> assigned_to -&gt; users.id (nullable)</text>
+  <text x="670" y="905" class="attr"><tspan class="fk">FK</tspan> created_by -&gt; users.id</text>
+  <text x="670" y="940" class="attr">created_at</text>
+  <text x="670" y="975" class="attr">updated_at</text>
+
+  <!-- COMMENTS -->
+  <g filter="url(#shadow)">
+    <rect x="1240" y="560" width="360" height="250" rx="22" fill="#F8FFFA" class="cardStroke"/>
+  </g>
+  <rect x="1240" y="560" width="360" height="64" rx="22" fill="#DFF1E3"/>
+  <text x="1270" y="600" class="tableTitle">COMMENTS</text>
+  <line x1="1240" y1="624" x2="1600" y2="624" stroke="#C6E4CC" stroke-width="2"/>
+  <text x="1270" y="665" class="attr"><tspan class="pk">PK</tspan> id</text>
+  <text x="1270" y="700" class="attr"><tspan class="fk">FK</tspan> task_id -&gt; tasks.id</text>
+  <text x="1270" y="735" class="attr"><tspan class="fk">FK</tspan> user_id -&gt; users.id</text>
+  <text x="1270" y="770" class="attr">content</text>
+  <text x="1270" y="805" class="attr">created_at</text>
+
+  <!-- ACTIVITY LOG -->
+  <g filter="url(#shadow)">
+    <rect x="1240" y="900" width="390" height="250" rx="22" fill="#F8FBFF" class="cardStroke"/>
+  </g>
+  <rect x="1240" y="900" width="390" height="64" rx="22" fill="#D9E8F8"/>
+  <text x="1270" y="940" class="tableTitle">ACTIVITY_LOG</text>
+  <line x1="1240" y1="964" x2="1630" y2="964" stroke="#C9DCF1" stroke-width="2"/>
+  <text x="1270" y="1005" class="attr"><tspan class="pk">PK</tspan> id</text>
+  <text x="1270" y="1040" class="attr"><tspan class="fk">FK</tspan> task_id -&gt; tasks.id</text>
+  <text x="1270" y="1075" class="attr"><tspan class="fk">FK</tspan> user_id -&gt; users.id</text>
+  <text x="1270" y="1110" class="attr">action</text>
+  <text x="1270" y="1145" class="attr">created_at</text>
+
+  <!-- RELATION LINES -->
+  <!-- user creates project -->
+  <path d="M450 310 L560 310 L560 260 L670 260" class="arrow"/>
+  <text x="507" y="297" class="label">CREATES (1:M)</text>
+
+  <!-- users to project members -->
+  <path d="M450 350 L1170 350 L1170 345 L1250 345" class="arrow"/>
+  <text x="760" y="337" class="label">USER TO PROJECT_MEMBER (1:M)</text>
+
+  <!-- projects to project members -->
+  <path d="M1050 320 L1160 320 L1160 310 L1250 310" class="arrow"/>
+  <text x="1085" y="305" class="label">PROJECT TO MEMBER (1:M)</text>
+
+  <!-- project has tasks -->
+  <path d="M860 420 L860 470 L860 470 L860 520" class="arrow"/>
+  <text x="880" y="485" class="label">HAS TASKS (1:M)</text>
+
+  <!-- user assigned to task -->
+  <path d="M450 470 L560 470 L560 870 L640 870" class="arrow"/>
+  <text x="470" y="455" class="label">ASSIGNED_TO (1:M, optional)</text>
+
+  <!-- user creates task -->
+  <path d="M450 440 L530 440 L530 905 L640 905" class="arrow"/>
+  <text x="470" y="425" class="label">CREATES TASK (1:M)</text>
+
+  <!-- task has comments -->
+  <path d="M1080 700 L1160 700 L1160 700 L1240 700" class="arrow"/>
+  <text x="1110" y="687" class="label">HAS COMMENTS (1:M)</text>
+
+  <!-- user writes comment -->
+  <path d="M450 395 L1140 395 L1140 735 L1240 735" class="arrow"/>
+  <text x="760" y="382" class="label">WRITES COMMENT (1:M)</text>
+
+  <!-- task generates activity -->
+  <path d="M1080 1030 L1160 1030 L1160 1040 L1240 1040" class="arrow"/>
+  <text x="1094" y="1017" class="label">GENERATES ACTIVITY (1:M)</text>
+
+  <!-- user performs activity -->
+  <path d="M450 500 L1120 500 L1120 1075 L1240 1075" class="arrow"/>
+  <text x="772" y="487" class="label">PERFORMS ACTIVITY (1:M)</text>
+
+  <!-- Notes -->
+  <g filter="url(#shadow)">
+    <rect x="90" y="600" width="420" height="300" rx="22" fill="#FFFFFF" class="cardStroke"/>
+  </g>
+  <text x="120" y="645" class="tableTitle">RELATIONSHIP SUMMARY</text>
+  <text x="120" y="690" class="attr">1. User creates Project</text>
+  <text x="120" y="725" class="attr">2. User joins Project through</text>
+  <text x="145" y="752" class="attr">Project_Members</text>
+  <text x="120" y="790" class="attr">3. Project has many Tasks</text>
+  <text x="120" y="825" class="attr">4. Task optionally assigned to User</text>
+  <text x="120" y="860" class="attr">5. Task has Comments and Activity Logs</text>
+
+  <g filter="url(#shadow)">
+    <rect x="90" y="940" width="420" height="220" rx="22" fill="#FFFFFF" class="cardStroke"/>
+  </g>
+  <text x="120" y="985" class="tableTitle">NOTES</text>
+  <text x="120" y="1030" class="note">- Diagram is based on the actual MySQL schema.</text>
+  <text x="120" y="1065" class="note">- `assigned_to` is nullable in Tasks.</text>
+  <text x="120" y="1100" class="note">- `Project_Members` resolves M:N membership.</text>
+  <text x="120" y="1135" class="note">- Comments and Activity Logs both depend on Task.</text>
+</svg>
