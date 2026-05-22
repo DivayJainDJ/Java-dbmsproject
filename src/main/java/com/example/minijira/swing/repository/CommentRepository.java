@@ -1,17 +1,14 @@
 package com.example.minijira.swing.repository;
 
 import com.example.minijira.swing.db.DatabaseConnection;
-import com.example.minijira.swing.model.Comment;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import com.example.minijira.swing.model.*;
+import java.sql.*;
+import java.util.*;
 
 public class CommentRepository {
 
     public List<Comment> findByTaskId(Long taskId) throws SQLException {
+        // Load all comments of one task.
         List<Comment> comments = new ArrayList<>();
         String sql = """
             SELECT c.id, c.task_id, c.user_id, u.name AS user_name, c.content, c.created_at
@@ -25,6 +22,7 @@ public class CommentRepository {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, taskId);
             try (ResultSet resultSet = statement.executeQuery()) {
+                // Convert every row into a Comment object.
                 while (resultSet.next()) {
                     Comment comment = new Comment();
                     comment.setId(resultSet.getLong("id"));
@@ -41,9 +39,11 @@ public class CommentRepository {
     }
 
     public void save(Long taskId, Long userId, String content) throws SQLException {
+        // Store one new comment in the comments table.
         String sql = "INSERT INTO comments(task_id, user_id, content) VALUES (?, ?, ?)";
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
+            // Set task id, user id, and comment text into SQL query.
             statement.setLong(1, taskId);
             statement.setLong(2, userId);
             statement.setString(3, content);

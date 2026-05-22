@@ -1,6 +1,8 @@
+-- Create the database if it does not already exist.
 CREATE DATABASE IF NOT EXISTS mini_jira_db;
 USE mini_jira_db;
 
+-- Stores login and role information for all users.
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
@@ -10,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Stores project details. Each project has one creator.
 CREATE TABLE IF NOT EXISTS projects (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(150) NOT NULL,
@@ -21,6 +24,7 @@ CREATE TABLE IF NOT EXISTS projects (
         ON DELETE RESTRICT
 );
 
+-- Junction table for many-to-many relation between project and users.
 CREATE TABLE IF NOT EXISTS project_members (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     project_id BIGINT NOT NULL,
@@ -35,6 +39,7 @@ CREATE TABLE IF NOT EXISTS project_members (
         ON DELETE CASCADE
 );
 
+-- Stores all tasks belonging to projects.
 CREATE TABLE IF NOT EXISTS tasks (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(200) NOT NULL,
@@ -58,6 +63,7 @@ CREATE TABLE IF NOT EXISTS tasks (
         ON DELETE RESTRICT
 );
 
+-- Stores comments written on tasks.
 CREATE TABLE IF NOT EXISTS comments (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     task_id BIGINT NOT NULL,
@@ -72,6 +78,7 @@ CREATE TABLE IF NOT EXISTS comments (
         ON DELETE CASCADE
 );
 
+-- Stores task history such as create, update, assign, and status change.
 CREATE TABLE IF NOT EXISTS activity_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     task_id BIGINT NOT NULL,

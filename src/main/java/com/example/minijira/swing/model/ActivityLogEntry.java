@@ -2,6 +2,7 @@ package com.example.minijira.swing.model;
 
 import java.time.LocalDateTime;
 
+// Represents one activity record such as create task, update task, or status change.
 public class ActivityLogEntry {
     private Long id;
     private Long taskId;

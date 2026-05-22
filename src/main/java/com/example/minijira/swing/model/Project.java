@@ -1,11 +1,13 @@
 package com.example.minijira.swing.model;
 
+// Represents one project created inside the Mini Jira system.
 public class Project {
     private Long id;
     private String name;
     private String description;
     private Long createdBy;
     private String createdByName;
+    // Member count is shown in the project list UI.
     private int memberCount;
 
     public Long getId() {
@@ -58,6 +60,7 @@ public class Project {
 
     @Override
     public String toString() {
+        // This text is shown directly in the JList for projects.
         return name + " | Owner: " + createdByName + " | Members: " + memberCount;
     }
 }

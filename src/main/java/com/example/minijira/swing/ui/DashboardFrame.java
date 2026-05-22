@@ -1,250 +1,177 @@
 package com.example.minijira.swing.ui;
 
-import com.example.minijira.swing.model.ActivityLogEntry;
-import com.example.minijira.swing.model.Comment;
-import com.example.minijira.swing.model.DashboardStats;
-import com.example.minijira.swing.model.Project;
-import com.example.minijira.swing.model.Role;
-import com.example.minijira.swing.model.Task;
-import com.example.minijira.swing.model.TaskPriority;
-import com.example.minijira.swing.model.TaskStatus;
-import com.example.minijira.swing.model.User;
+import com.example.minijira.swing.model.*;
 import com.example.minijira.swing.service.AuthService;
 import com.example.minijira.swing.service.ProjectService;
 import com.example.minijira.swing.service.TaskService;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.GridLayout;
+import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.BorderFactory;
-import javax.swing.BoxLayout;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.DefaultListModel;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
-import javax.swing.JTabbedPane;
-import javax.swing.JTable;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
-import javax.swing.UIManager;
-import javax.swing.SwingConstants;
+import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.border.TitledBorder;
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.border.Border;
 
 public class DashboardFrame extends JFrame {
-    private static final DateTimeFormatter INPUT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    // Logged-in user decides both permissions and dashboard appearance.
     private final User currentUser;
     private final AuthService authService = new AuthService();
     private final ProjectService projectService = new ProjectService();
     private final TaskService taskService = new TaskService();
 
-    private final DefaultListModel<Project> projectListModel = new DefaultListModel<>();
-    private final JList<Project> projectList = new JList<>(projectListModel);
-    private final DefaultTableModel taskTableModel = new DefaultTableModel(
+    // Common format used when showing task deadlines and timestamps.
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    // Left-side project list and center task table are the main data views.
+    private DefaultListModel<Project> projectListModel = new DefaultListModel<>();
+    private JList<Project> projectList = new JList<>(projectListModel);
+    private DefaultTableModel taskTableModel = new DefaultTableModel(
         new Object[]{"Id", "Title", "Status", "Priority", "Assignee", "Deadline"}, 0
-    ) {
-        @Override
-        public boolean isCellEditable(int row, int column) {
-            return false;
-        }
-    };
-    private final JTable taskTable = new JTable(taskTableModel);
-    private final JTextArea taskDetailsArea = new JTextArea();
-    private final JTextArea commentsArea = new JTextArea();
-    private final JTextArea activityArea = new JTextArea();
-    private final JTextArea roleNotesArea = new JTextArea();
-    private final JTextField projectNameField = new JTextField();
-    private final JTextField projectDescriptionField = new JTextField();
-    private final JTextField commentField = new JTextField();
-    private final JTextField taskSearchField = new JTextField(18);
-    private final JComboBox<String> statusFilterBox = new JComboBox<>(new String[]{"ALL", "TODO", "IN_PROGRESS", "DONE"});
-    private final JComboBox<String> priorityFilterBox = new JComboBox<>(new String[]{"ALL", "LOW", "MEDIUM", "HIGH"});
-    private final JComboBox<String> assigneeFilterBox = new JComboBox<>(new String[]{"ALL"});
-    private final JTextArea membersArea = new JTextArea();
-    private final JTextArea userDirectoryArea = new JTextArea();
-    private final JLabel workspaceRoleLabel = new JLabel("", SwingConstants.LEFT);
-    private final JLabel projectActionsLabel = new JLabel("", SwingConstants.LEFT);
-    private final JLabel taskActionsLabel = new JLabel("", SwingConstants.LEFT);
-    private final JLabel roleBadgeLabel = new JLabel("", SwingConstants.CENTER);
-    private final JLabel workspaceBannerLabel = new JLabel("", SwingConstants.LEFT);
+    );
+    private JTable taskTable = new JTable(taskTableModel);
 
-    private JButton createProjectButton;
-    private JButton addMemberButton;
-    private JButton addTaskButton;
-    private JButton editTaskButton;
-    private JButton deleteTaskButton;
-    private JButton moveStatusButton;
-    private JButton commentButton;
-    private JButton refreshButton;
-    private JButton resetFiltersButton;
-    private JButton myTasksButton;
-    private JButton exportTaskButton;
+    // These text areas are used inside the lower tabs.
+    private JTextArea taskArea = new JTextArea();
+    private JTextArea commentsArea = new JTextArea();
+    private JTextArea activityArea = new JTextArea();
+    private JTextArea membersArea = new JTextArea();
+    private JTextArea extraArea = new JTextArea();
 
-    private final JLabel totalTasksLabel = new JLabel("0", SwingConstants.CENTER);
-    private final JLabel todoTasksLabel = new JLabel("0", SwingConstants.CENTER);
-    private final JLabel inProgressTasksLabel = new JLabel("0", SwingConstants.CENTER);
-    private final JLabel doneTasksLabel = new JLabel("0", SwingConstants.CENTER);
-    private final JLabel highPriorityLabel = new JLabel("0", SwingConstants.CENTER);
-    private final JLabel mediumPriorityLabel = new JLabel("0", SwingConstants.CENTER);
-    private final JLabel lowPriorityLabel = new JLabel("0", SwingConstants.CENTER);
+    // Input controls used for project creation, task search, and comments.
+    private JTextField projectNameField = new JTextField();
+    private JTextField projectDescriptionField = new JTextField();
+    private JTextField taskSearchField = new JTextField();
+    private JTextField commentField = new JTextField();
 
+    // Simple filter controls for narrowing visible tasks.
+    private JComboBox<String> statusBox = new JComboBox<>(new String[]{"ALL", "TODO", "IN_PROGRESS", "DONE"});
+    private JComboBox<String> priorityBox = new JComboBox<>(new String[]{"ALL", "LOW", "MEDIUM", "HIGH"});
+    private JComboBox<String> assigneeBox = new JComboBox<>(new String[]{"ALL"});
+
+    // Summary labels are updated whenever project/task data changes.
+    private JLabel roleLabel = new JLabel();
+    private JLabel totalLabel = new JLabel("0", SwingConstants.CENTER);
+    private JLabel todoLabel = new JLabel("0", SwingConstants.CENTER);
+    private JLabel progressLabel = new JLabel("0", SwingConstants.CENTER);
+    private JLabel doneLabel = new JLabel("0", SwingConstants.CENTER);
+
+    // Action buttons are enabled or shown depending on the role.
+    private JButton createProjectButton = new JButton("Create Project");
+    private JButton addMemberButton = new JButton("Add Member");
+    private JButton addTaskButton = new JButton("Add Task");
+    private JButton editTaskButton = new JButton("Edit Task");
+    private JButton deleteTaskButton = new JButton("Delete Task");
+    private JButton statusTaskButton = new JButton("Move Status");
+    private JButton commentButton = new JButton("Add Comment");
+
+    // These lists keep the currently loaded project members and tasks in memory.
     private List<Task> currentTasks = new ArrayList<>();
-    private List<User> currentProjectMembers = new ArrayList<>();
-    private Color roleAccentColor = new Color(52, 73, 94);
-    private JPanel rootPanel;
-    private JPanel infoPanel;
-    private JPanel statsPanel;
-    private JPanel taskPanel;
-    private JTabbedPane detailsTabs;
+    private List<User> currentMembers = new ArrayList<>();
 
     public DashboardFrame(User currentUser) {
         this.currentUser = currentUser;
 
-        setTitle("Mini Jira Tracker - Swing Dashboard");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1380, 860);
-        setMinimumSize(new Dimension(1220, 760));
+        // Main window after login. Its actions change depending on the user's role.
+        setTitle(getWindowTitle());
+        setSize(1250, 780);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout(12, 12));
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
 
-        add(buildHeader(), BorderLayout.NORTH);
-        add(buildMainBody(), BorderLayout.CENTER);
+        add(createHeader(), BorderLayout.NORTH);
+        add(createMainPanel(), BorderLayout.CENTER);
 
-        taskDetailsArea.setEditable(false);
+        taskArea.setEditable(false);
         commentsArea.setEditable(false);
         activityArea.setEditable(false);
         membersArea.setEditable(false);
-        roleNotesArea.setEditable(false);
-        userDirectoryArea.setEditable(false);
-        taskDetailsArea.setLineWrap(true);
-        commentsArea.setLineWrap(true);
-        activityArea.setLineWrap(true);
-        membersArea.setLineWrap(true);
-        roleNotesArea.setLineWrap(true);
-        userDirectoryArea.setLineWrap(true);
-        taskDetailsArea.setWrapStyleWord(true);
-        commentsArea.setWrapStyleWord(true);
-        activityArea.setWrapStyleWord(true);
-        membersArea.setWrapStyleWord(true);
-        roleNotesArea.setWrapStyleWord(true);
-        userDirectoryArea.setWrapStyleWord(true);
-        roleNotesArea.setBackground(UIManager.getColor("Panel.background"));
-        userDirectoryArea.setBackground(UIManager.getColor("Panel.background"));
+        extraArea.setEditable(false);
 
         projectList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        projectList.addListSelectionListener(event -> {
-            if (!event.getValueIsAdjusting()) {
-                onProjectSelectionChanged();
+        projectList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                projectChanged();
             }
         });
 
-        taskTable.getSelectionModel().addListSelectionListener(event -> {
-            if (!event.getValueIsAdjusting()) {
-                onTaskSelectionChanged();
+        taskTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                taskChanged();
             }
         });
 
+        taskTableModel = new DefaultTableModel(new Object[]{"Id", "Title", "Status", "Priority", "Assignee", "Deadline"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        taskTable.setModel(taskTableModel);
+
+        setupButtons();
+        setupRoleUi();
         loadProjects();
-        configureRoleView();
     }
 
-    private JPanel buildHeader() {
+    private JPanel createHeader() {
+        // Top bar shows application name on left and role banner on right.
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
-        panel.setOpaque(false);
-
-        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        leftPanel.setOpaque(false);
-
-        roleBadgeLabel.setOpaque(true);
-        roleBadgeLabel.setForeground(Color.WHITE);
-        roleBadgeLabel.setPreferredSize(new Dimension(130, 34));
-        roleBadgeLabel.setFont(roleBadgeLabel.getFont().deriveFont(Font.BOLD, 13f));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 0, 10));
 
         JLabel title = new JLabel("Mini Jira Tracker");
-        title.setFont(title.getFont().deriveFont(24f));
-        leftPanel.add(roleBadgeLabel);
-        leftPanel.add(title);
-        panel.add(leftPanel, BorderLayout.WEST);
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        panel.add(title, BorderLayout.WEST);
 
-        JPanel rightPanel = new JPanel(new GridLayout(0, 1));
-        rightPanel.setOpaque(false);
-        rightPanel.add(new JLabel(currentUser.getName() + " | " + currentUser.getRole(), SwingConstants.RIGHT));
-        workspaceRoleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        rightPanel.add(workspaceRoleLabel);
-        refreshButton = new JButton("Refresh All");
-        refreshButton.addActionListener(event -> loadProjects());
-        rightPanel.add(refreshButton);
-        panel.add(rightPanel, BorderLayout.EAST);
+        roleLabel.setText(getRoleBannerText());
+        roleLabel.setOpaque(true);
+        roleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        roleLabel.setForeground(Color.WHITE);
+        roleLabel.setBackground(getRoleColor());
+        roleLabel.setPreferredSize(new Dimension(250, 35));
+        panel.add(roleLabel, BorderLayout.EAST);
+
         return panel;
     }
 
-    private JSplitPane buildMainBody() {
+    private JSplitPane createMainPanel() {
+        // Main screen is split into left navigation and right work area.
         JSplitPane splitPane = new JSplitPane();
-        splitPane.setResizeWeight(0.23);
         splitPane.setDividerLocation(300);
-        splitPane.setLeftComponent(buildProjectSidebar());
-        splitPane.setRightComponent(buildWorkspacePanel());
+        splitPane.setResizeWeight(0.25);
+        splitPane.setLeftComponent(createLeftPanel());
+        splitPane.setRightComponent(createRightPanel());
         return splitPane;
     }
 
-    private JPanel buildProjectSidebar() {
+    private JPanel createLeftPanel() {
+        // Left side contains session info, project tools, project list, and logout.
         JPanel panel = new JPanel(new BorderLayout(8, 8));
-        panel.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 6));
-        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 5));
 
-        infoPanel = new JPanel(new GridLayout(0, 1, 4, 4));
-        infoPanel.setBorder(BorderFactory.createTitledBorder("Session"));
-        infoPanel.add(new JLabel("Name: " + currentUser.getName()));
-        infoPanel.add(new JLabel("Email: " + currentUser.getEmail()));
-        infoPanel.add(new JLabel("Role: " + currentUser.getRole()));
-        infoPanel.add(projectActionsLabel);
-        infoPanel.add(taskActionsLabel);
-        panel.add(infoPanel, BorderLayout.NORTH);
+        JPanel topPanel = new JPanel(new GridLayout(0, 1, 6, 6));
+        topPanel.setBorder(BorderFactory.createTitledBorder("Session"));
+        topPanel.add(new JLabel("User: " + currentUser.getName()));
+        topPanel.add(new JLabel("Email: " + currentUser.getEmail()));
+        topPanel.add(new JLabel("Role: " + currentUser.getRole()));
+        panel.add(topPanel, BorderLayout.NORTH);
 
         JPanel centerPanel = new JPanel(new BorderLayout(8, 8));
-        centerPanel.setBorder(BorderFactory.createTitledBorder("Projects"));
-        centerPanel.setOpaque(false);
+        centerPanel.setBorder(BorderFactory.createTitledBorder(getProjectsPanelTitle()));
 
+        // Only admin can create projects and add members.
         if (currentUser.getRole() == Role.ADMIN) {
             JPanel createPanel = new JPanel(new GridLayout(0, 1, 6, 6));
-            createPanel.setOpaque(false);
             createPanel.add(new JLabel("Project Name"));
             createPanel.add(projectNameField);
             createPanel.add(new JLabel("Description"));
             createPanel.add(projectDescriptionField);
 
-            createProjectButton = new JButton("Create Project");
-            createProjectButton.addActionListener(event -> createProject());
-
-            addMemberButton = new JButton("Add Member by Email");
-            addMemberButton.addActionListener(event -> addProjectMember());
-
             JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 6, 0));
-            buttonPanel.setOpaque(false);
             buttonPanel.add(createProjectButton);
             buttonPanel.add(addMemberButton);
             createPanel.add(buttonPanel);
@@ -254,183 +181,175 @@ public class DashboardFrame extends JFrame {
         centerPanel.add(new JScrollPane(projectList), BorderLayout.CENTER);
         panel.add(centerPanel, BorderLayout.CENTER);
 
-        JPanel notesPanel = new JPanel(new BorderLayout());
-        notesPanel.setBorder(BorderFactory.createTitledBorder("Role Guidance"));
-        notesPanel.setOpaque(false);
-        notesPanel.add(new JScrollPane(roleNotesArea), BorderLayout.CENTER);
-        notesPanel.setPreferredSize(new Dimension(260, 140));
-        panel.add(notesPanel, BorderLayout.SOUTH);
-
         JButton logoutButton = new JButton("Logout");
-        logoutButton.addActionListener(event -> logout());
-        JPanel southPanel = new JPanel(new BorderLayout(0, 8));
-        southPanel.setOpaque(false);
-        southPanel.add(notesPanel, BorderLayout.CENTER);
-        southPanel.add(logoutButton, BorderLayout.SOUTH);
-        panel.add(southPanel, BorderLayout.SOUTH);
+        logoutButton.addActionListener(e -> logout());
+        panel.add(logoutButton, BorderLayout.SOUTH);
+
         return panel;
     }
 
-    private JPanel buildWorkspacePanel() {
-        rootPanel = new JPanel(new BorderLayout(10, 10));
-        rootPanel.setBorder(BorderFactory.createEmptyBorder(0, 6, 12, 12));
-        rootPanel.setOpaque(true);
+    private JPanel createRightPanel() {
+        // Right side contains stats, task table, and detail tabs.
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 5, 10, 10));
 
-        JPanel northPanel = new JPanel(new BorderLayout(0, 10));
-        northPanel.setOpaque(false);
-        northPanel.add(buildWorkspaceBanner(), BorderLayout.NORTH);
-        northPanel.add(buildStatsPanel(), BorderLayout.CENTER);
+        JPanel topPanel = new JPanel(new BorderLayout(8, 8));
+        topPanel.add(createStatsPanel(), BorderLayout.NORTH);
+        topPanel.add(createTaskPanel(), BorderLayout.CENTER);
 
-        rootPanel.add(northPanel, BorderLayout.NORTH);
-        rootPanel.add(buildTaskAndDetailPanel(), BorderLayout.CENTER);
-        return rootPanel;
-    }
-
-    private JPanel buildWorkspaceBanner() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(roleAccentColor, 2, true),
-            BorderFactory.createEmptyBorder(10, 14, 10, 14)
-        ));
-        panel.setBackground(Color.WHITE);
-        workspaceBannerLabel.setFont(workspaceBannerLabel.getFont().deriveFont(Font.BOLD, 16f));
-        panel.add(workspaceBannerLabel, BorderLayout.CENTER);
-        return panel;
-    }
-
-    private JPanel buildStatsPanel() {
-        statsPanel = new JPanel(new GridLayout(1, 7, 8, 8));
-        statsPanel.setBorder(BorderFactory.createTitledBorder("Dashboard"));
-        statsPanel.add(statCard("Total", totalTasksLabel));
-        statsPanel.add(statCard("TODO", todoTasksLabel));
-        statsPanel.add(statCard("In Progress", inProgressTasksLabel));
-        statsPanel.add(statCard("Done", doneTasksLabel));
-        statsPanel.add(statCard("High", highPriorityLabel));
-        statsPanel.add(statCard("Medium", mediumPriorityLabel));
-        statsPanel.add(statCard("Low", lowPriorityLabel));
-        return statsPanel;
-    }
-
-    private JPanel statCard(String title, JLabel valueLabel) {
-        JPanel card = new JPanel(new BorderLayout());
-        card.setBorder(BorderFactory.createTitledBorder(title));
-        valueLabel.setForeground(roleAccentColor);
-        valueLabel.setFont(valueLabel.getFont().deriveFont(20f));
-        card.add(valueLabel, BorderLayout.CENTER);
-        return card;
-    }
-
-    private JSplitPane buildTaskAndDetailPanel() {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitPane.setResizeWeight(0.6);
-        splitPane.setTopComponent(buildTaskPanel());
-        splitPane.setBottomComponent(buildDetailsPanel());
-        return splitPane;
+        splitPane.setResizeWeight(0.60);
+        splitPane.setTopComponent(topPanel);
+        splitPane.setBottomComponent(createTabs());
+
+        panel.add(splitPane, BorderLayout.CENTER);
+        return panel;
     }
 
-    private JPanel buildTaskPanel() {
-        taskPanel = new JPanel(new BorderLayout(8, 8));
-        taskPanel.setBorder(BorderFactory.createTitledBorder("Tasks"));
+    private JPanel createStatsPanel() {
+        // Small cards show quick project summary numbers.
+        JPanel panel = new JPanel(new GridLayout(1, 4, 8, 8));
+        panel.setBorder(BorderFactory.createTitledBorder(getStatsPanelTitle()));
+        panel.add(createStatCard("Total", totalLabel));
+        panel.add(createStatCard("TODO", todoLabel));
+        panel.add(createStatCard("In Progress", progressLabel));
+        panel.add(createStatCard("Done", doneLabel));
+        return panel;
+    }
+
+    private JPanel createStatCard(String title, JLabel label) {
+        // Reusable card for one summary value.
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(title));
+        label.setForeground(getRoleColor());
+        label.setFont(new Font("Arial", Font.BOLD, 22));
+        panel.add(label, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createTaskPanel() {
+        // Task panel combines buttons, filters, and task table.
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBorder(BorderFactory.createTitledBorder(getTaskPanelTitle()));
 
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
-        topPanel.add(buildTaskToolbar());
-        topPanel.add(buildFilterBar());
-        taskPanel.add(topPanel, BorderLayout.NORTH);
+        topPanel.add(createToolbar());
+        topPanel.add(createFilterPanel());
 
-        taskTable.setRowHeight(24);
-        taskPanel.add(new JScrollPane(taskTable), BorderLayout.CENTER);
-        return taskPanel;
-    }
-
-    private JPanel buildTaskToolbar() {
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        toolbar.setOpaque(false);
-
-        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.DEVELOPER) {
-            addTaskButton = new JButton("Add Task");
-            addTaskButton.addActionListener(event -> openTaskDialog(null));
-
-            editTaskButton = new JButton("Edit Task");
-            editTaskButton.addActionListener(event -> openTaskDialog(getSelectedTask()));
-
-            deleteTaskButton = new JButton("Delete Task");
-            deleteTaskButton.addActionListener(event -> deleteSelectedTask());
-
-            moveStatusButton = new JButton("Move Status");
-            moveStatusButton.addActionListener(event -> moveSelectedTaskStatus());
-
-            toolbar.add(addTaskButton);
-            toolbar.add(editTaskButton);
-            toolbar.add(deleteTaskButton);
-            toolbar.add(moveStatusButton);
-        }
-
-        if (currentUser.getRole() == Role.DEVELOPER) {
-            myTasksButton = new JButton("My Tasks");
-            myTasksButton.addActionListener(event -> filterMyTasks());
-            toolbar.add(myTasksButton);
-        }
-
-        exportTaskButton = new JButton(currentUser.getRole() == Role.VIEWER ? "Export Review" : "Export Task");
-        exportTaskButton.addActionListener(event -> exportSelectedTask());
-        toolbar.add(exportTaskButton);
-        return toolbar;
-    }
-
-    private JPanel buildFilterBar() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        panel.setOpaque(false);
-        panel.add(new JLabel("Status"));
-        panel.add(statusFilterBox);
-        panel.add(new JLabel("Priority"));
-        panel.add(priorityFilterBox);
-        panel.add(new JLabel("Assignee"));
-        panel.add(assigneeFilterBox);
-        panel.add(new JLabel("Search"));
-        panel.add(taskSearchField);
-
-        JButton applyButton = new JButton("Apply Filters");
-        applyButton.addActionListener(event -> loadTasksForSelectedProject());
-        panel.add(applyButton);
-
-        resetFiltersButton = new JButton("Reset");
-        resetFiltersButton.addActionListener(event -> resetFilters());
-        panel.add(resetFiltersButton);
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(taskTable), BorderLayout.CENTER);
         return panel;
     }
 
-    private JTabbedPane buildDetailsPanel() {
-        detailsTabs = new JTabbedPane();
-        detailsTabs.setBorder(BorderFactory.createTitledBorder("Task Details"));
+    private JPanel createToolbar() {
+        // Toolbar contains actions such as add/edit/delete/move/export task.
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        detailsTabs.addTab("Selected Task", new JScrollPane(taskDetailsArea));
-
-        JPanel commentsPanel = new JPanel(new BorderLayout(8, 8));
-        commentsPanel.add(new JScrollPane(commentsArea), BorderLayout.CENTER);
-        if (currentUser.getRole() != Role.VIEWER) {
-            JPanel commentEntryPanel = new JPanel(new BorderLayout(8, 0));
-            commentEntryPanel.add(commentField, BorderLayout.CENTER);
-            commentButton = new JButton("Add Comment");
-            commentButton.addActionListener(event -> addComment());
-            commentEntryPanel.add(commentButton, BorderLayout.EAST);
-            commentsPanel.add(commentEntryPanel, BorderLayout.SOUTH);
+        // Viewer is read-only, so task action buttons are not shown.
+        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.DEVELOPER) {
+            panel.add(addTaskButton);
+            panel.add(editTaskButton);
+            panel.add(deleteTaskButton);
+            panel.add(statusTaskButton);
         }
-        detailsTabs.addTab("Comments", commentsPanel);
 
-        detailsTabs.addTab("Activity Log", new JScrollPane(activityArea));
-        detailsTabs.addTab("Project Members", new JScrollPane(membersArea));
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            JButton myTasksButton = new JButton("My Tasks");
+            myTasksButton.addActionListener(e -> showMyTasks());
+            panel.add(myTasksButton);
+        }
+
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(e -> loadProjects());
+        panel.add(refreshButton);
+
+        JButton exportButton = new JButton("Export Task");
+        exportButton.addActionListener(e -> exportTask());
+        panel.add(exportButton);
+
+        return panel;
+    }
+
+    private JPanel createFilterPanel() {
+        // Filter row helps narrow down tasks without writing new SQL manually in UI.
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.add(new JLabel("Status"));
+        panel.add(statusBox);
+        panel.add(new JLabel("Priority"));
+        panel.add(priorityBox);
+        panel.add(new JLabel("Assignee"));
+        panel.add(assigneeBox);
+        panel.add(new JLabel("Search"));
+        taskSearchField.setColumns(12);
+        panel.add(taskSearchField);
+
+        JButton applyButton = new JButton("Apply");
+        applyButton.addActionListener(e -> loadTasks());
+        panel.add(applyButton);
+
+        JButton resetButton = new JButton("Reset");
+        resetButton.addActionListener(e -> resetFilters());
+        panel.add(resetButton);
+
+        return panel;
+    }
+
+    private JTabbedPane createTabs() {
+        JTabbedPane tabs = new JTabbedPane();
+        // These tabs help show all task-related information in one place.
+        tabs.addTab("Task Info", new JScrollPane(taskArea));
+        tabs.addTab("Comments", createCommentsPanel());
+        tabs.addTab("Activity", new JScrollPane(activityArea));
+        tabs.addTab("Members", new JScrollPane(membersArea));
+
         if (currentUser.getRole() == Role.ADMIN) {
-            detailsTabs.addTab("User Directory", new JScrollPane(userDirectoryArea));
+            tabs.addTab("Users", new JScrollPane(extraArea));
+        } else if (currentUser.getRole() == Role.DEVELOPER) {
+            tabs.addTab("Work Notes", new JScrollPane(extraArea));
+        } else {
+            tabs.addTab("Review Notes", new JScrollPane(extraArea));
         }
-        return detailsTabs;
+        return tabs;
+    }
+
+    private JPanel createCommentsPanel() {
+        // Viewer can read comments, while Admin/Developer can also write comments.
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new JScrollPane(commentsArea), BorderLayout.CENTER);
+
+        if (currentUser.getRole() != Role.VIEWER) {
+            JPanel bottom = new JPanel(new BorderLayout(8, 0));
+            bottom.add(commentField, BorderLayout.CENTER);
+            bottom.add(commentButton, BorderLayout.EAST);
+            panel.add(bottom, BorderLayout.SOUTH);
+        }
+        return panel;
+    }
+
+    private void setupButtons() {
+        // Connect every button to its matching dashboard action method.
+        createProjectButton.addActionListener(e -> createProject());
+        addMemberButton.addActionListener(e -> addMember());
+        addTaskButton.addActionListener(e -> openTaskDialog(null));
+        editTaskButton.addActionListener(e -> openTaskDialog(getSelectedTask()));
+        deleteTaskButton.addActionListener(e -> deleteTask());
+        statusTaskButton.addActionListener(e -> moveStatus());
+        commentButton.addActionListener(e -> addComment());
+    }
+
+    private void setupRoleUi() {
+        // Default text shown in the role-specific extra tab.
+        extraArea.setText(getExtraTabText());
     }
 
     private void loadProjects() {
         try {
+            // Admin gets an extra tab with the full user list.
             if (currentUser.getRole() == Role.ADMIN) {
-                userDirectoryArea.setText(formatUsers(authService.loadAllUsers()));
+                extraArea.setText(formatUsers(authService.loadAllUsers()));
             }
+
             List<Project> projects = projectService.loadProjects(currentUser);
             projectListModel.clear();
             for (Project project : projects) {
@@ -439,117 +358,76 @@ public class DashboardFrame extends JFrame {
             if (!projectListModel.isEmpty()) {
                 projectList.setSelectedIndex(0);
             } else {
-                clearWorkspace();
+                clearAllText();
             }
         } catch (SQLException exception) {
-            showError(exception.getMessage());
+            showMessage(exception.getMessage());
         }
     }
 
-    private void createProject() {
-        try {
-            if (projectNameField.getText().isBlank()) {
-                throw new IllegalArgumentException("Project name is required.");
-            }
-            projectService.createProject(projectNameField.getText(), projectDescriptionField.getText(), currentUser);
-            projectNameField.setText("");
-            projectDescriptionField.setText("");
-            loadProjects();
-        } catch (IllegalArgumentException | SQLException exception) {
-            showError(exception.getMessage());
-        }
-    }
-
-    private void addProjectMember() {
+    private void projectChanged() {
+        // When user selects a project, refresh members, tasks, and summary counts.
         Project project = projectList.getSelectedValue();
         if (project == null) {
-            showError("Select a project first.");
+            clearAllText();
             return;
         }
-        try {
-            String email = JOptionPane.showInputDialog(this, "Enter member email:");
-            if (email == null || email.isBlank()) {
-                return;
-            }
-            User member = authService.loadAllUsers().stream()
-                .filter(user -> user.getEmail().equalsIgnoreCase(email.trim()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No user found with this email."));
-            projectService.addMember(project, member, currentUser);
-            loadProjects();
-        } catch (IllegalArgumentException | SQLException exception) {
-            showError(exception.getMessage());
-        }
-    }
 
-    private void onProjectSelectionChanged() {
-        Project project = projectList.getSelectedValue();
-        if (project == null) {
-            clearWorkspace();
-            return;
-        }
         try {
-            currentProjectMembers = projectService.loadMembers(project.getId());
-            membersArea.setText(formatMembers(currentProjectMembers));
-            loadTasksForSelectedProject();
-            loadDashboard(project.getId());
+            currentMembers = projectService.loadMembers(project.getId());
+            membersArea.setText(formatMembers(currentMembers));
+            loadTasks();
+            loadStats(project.getId());
         } catch (SQLException exception) {
-            showError(exception.getMessage());
+            showMessage(exception.getMessage());
         }
     }
 
-    private void loadTasksForSelectedProject() {
+    private void loadTasks() {
         Project project = projectList.getSelectedValue();
         if (project == null) {
             return;
         }
+
         try {
-            TaskStatus status = "ALL".equals(statusFilterBox.getSelectedItem()) ? null : TaskStatus.valueOf((String) statusFilterBox.getSelectedItem());
-            TaskPriority priority = "ALL".equals(priorityFilterBox.getSelectedItem()) ? null : TaskPriority.valueOf((String) priorityFilterBox.getSelectedItem());
-            Long assigneeId = resolveAssigneeFilter();
-            currentTasks = taskService.loadTasks(project.getId(), status, priority, assigneeId);
-            applyTaskSearchFilter();
-            refreshTaskTable();
-            refreshAssigneeFilter();
-            onTaskSelectionChanged();
-        } catch (SQLException exception) {
-            showError(exception.getMessage());
-        }
-    }
+            // Filters are read from the UI and passed to the service/repository layer.
+            TaskStatus status = "ALL".equals(statusBox.getSelectedItem()) ? null : TaskStatus.valueOf((String) statusBox.getSelectedItem());
+            TaskPriority priority = "ALL".equals(priorityBox.getSelectedItem()) ? null : TaskPriority.valueOf((String) priorityBox.getSelectedItem());
+            Long userId = getSelectedAssigneeId();
 
-    private void resetFilters() {
-        statusFilterBox.setSelectedItem("ALL");
-        priorityFilterBox.setSelectedItem("ALL");
-        taskSearchField.setText("");
-        if (assigneeFilterBox.getItemCount() > 0) {
-            assigneeFilterBox.setSelectedIndex(0);
-        }
-        loadTasksForSelectedProject();
-    }
+            currentTasks = taskService.loadTasks(project.getId(), status, priority, userId);
 
-    private void filterMyTasks() {
-        for (int index = 0; index < assigneeFilterBox.getItemCount(); index++) {
-            String item = String.valueOf(assigneeFilterBox.getItemAt(index));
-            if (item.startsWith(currentUser.getId() + " | ")) {
-                assigneeFilterBox.setSelectedIndex(index);
-                break;
+            String search = taskSearchField.getText().trim().toLowerCase();
+            if (!search.isBlank()) {
+                List<Task> filtered = new ArrayList<>();
+                for (Task task : currentTasks) {
+                    String text = (task.getTitle() + " " + task.getDescription() + " " + task.getAssignedToName()).toLowerCase();
+                    if (text.contains(search)) {
+                        filtered.add(task);
+                    }
+                }
+                currentTasks = filtered;
             }
+
+            reloadTaskTable();
+            reloadAssigneeBox();
+            taskChanged();
+        } catch (SQLException exception) {
+            showMessage(exception.getMessage());
         }
-        loadTasksForSelectedProject();
     }
 
-    private void loadDashboard(Long projectId) throws SQLException {
+    private void loadStats(Long projectId) throws SQLException {
+        // Read summary counts from service and place them into UI labels.
         DashboardStats stats = taskService.loadStats(projectId);
-        totalTasksLabel.setText(String.valueOf(stats.getTotalTasks()));
-        todoTasksLabel.setText(String.valueOf(stats.getTodoTasks()));
-        inProgressTasksLabel.setText(String.valueOf(stats.getInProgressTasks()));
-        doneTasksLabel.setText(String.valueOf(stats.getDoneTasks()));
-        highPriorityLabel.setText(String.valueOf(stats.getHighPriorityTasks()));
-        mediumPriorityLabel.setText(String.valueOf(stats.getMediumPriorityTasks()));
-        lowPriorityLabel.setText(String.valueOf(stats.getLowPriorityTasks()));
+        totalLabel.setText(String.valueOf(stats.getTotalTasks()));
+        todoLabel.setText(String.valueOf(stats.getTodoTasks()));
+        progressLabel.setText(String.valueOf(stats.getInProgressTasks()));
+        doneLabel.setText(String.valueOf(stats.getDoneTasks()));
     }
 
-    private void refreshTaskTable() {
+    private void reloadTaskTable() {
+        // Rebuild the visible task table from the currentTasks list.
         taskTableModel.setRowCount(0);
         for (Task task : currentTasks) {
             taskTableModel.addRow(new Object[]{
@@ -558,7 +436,7 @@ public class DashboardFrame extends JFrame {
                 task.getStatus(),
                 task.getPriority(),
                 task.getAssignedToName() == null ? "Unassigned" : task.getAssignedToName(),
-                task.getDeadline() == null ? "-" : task.getDeadline().format(INPUT_FORMAT)
+                task.getDeadline() == null ? "-" : task.getDeadline().format(formatter)
             });
         }
         if (!currentTasks.isEmpty()) {
@@ -566,104 +444,109 @@ public class DashboardFrame extends JFrame {
         }
     }
 
-    private void applyTaskSearchFilter() {
-        String search = taskSearchField.getText().trim().toLowerCase();
-        if (search.isBlank()) {
-            return;
+    private void reloadAssigneeBox() {
+        // Rebuild assignee filter options based on selected project's members.
+        String oldValue = assigneeBox.getSelectedItem() == null ? "ALL" : assigneeBox.getSelectedItem().toString();
+        assigneeBox.removeAllItems();
+        assigneeBox.addItem("ALL");
+        for (User user : currentMembers) {
+            assigneeBox.addItem(user.getId() + " | " + user.getName());
         }
-        currentTasks = currentTasks.stream()
-            .filter(task -> {
-                String text = (task.getTitle() + " " + task.getDescription() + " " + (task.getAssignedToName() == null ? "" : task.getAssignedToName())).toLowerCase();
-                return text.contains(search);
-            })
-            .toList();
+        assigneeBox.setSelectedItem(oldValue);
     }
 
-    private void refreshAssigneeFilter() {
-        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>();
-        model.addElement("ALL");
-        for (User user : currentProjectMembers) {
-            model.addElement(user.getId() + " | " + user.getName());
-        }
-        assigneeFilterBox.setModel(model);
-    }
-
-    private void onTaskSelectionChanged() {
+    private void taskChanged() {
+        // When a task is selected, show its details, comments, and activity history.
         Task task = getSelectedTask();
         if (task == null) {
-            taskDetailsArea.setText("Select a task.");
+            taskArea.setText("Select a task.");
             commentsArea.setText("");
             activityArea.setText("");
             return;
         }
-        taskDetailsArea.setText(buildTaskDetails(task));
-        loadCommentsAndActivity(task.getId());
-    }
 
-    private String buildTaskDetails(Task task) {
-        return "Title: " + task.getTitle() + "\n"
-            + "Description: " + task.getDescription() + "\n"
-            + "Status: " + task.getStatus() + "\n"
-            + "Priority: " + task.getPriority() + "\n"
-            + "Assignee: " + (task.getAssignedToName() == null ? "Unassigned" : task.getAssignedToName()) + "\n"
-            + "Deadline: " + (task.getDeadline() == null ? "-" : task.getDeadline().format(INPUT_FORMAT)) + "\n"
-            + "Created By: " + task.getCreatedByName();
-    }
+        taskArea.setText(
+            "Title: " + task.getTitle() + "\n"
+                + "Description: " + task.getDescription() + "\n"
+                + "Status: " + task.getStatus() + "\n"
+                + "Priority: " + task.getPriority() + "\n"
+                + "Assignee: " + (task.getAssignedToName() == null ? "Unassigned" : task.getAssignedToName()) + "\n"
+                + "Deadline: " + (task.getDeadline() == null ? "-" : task.getDeadline().format(formatter)) + "\n"
+                + "Created By: " + task.getCreatedByName()
+        );
 
-    private void loadCommentsAndActivity(Long taskId) {
         try {
-            commentsArea.setText(formatComments(taskService.loadComments(taskId)));
-            activityArea.setText(formatActivity(taskService.loadActivity(taskId)));
+            commentsArea.setText(formatComments(taskService.loadComments(task.getId())));
+            activityArea.setText(formatActivity(taskService.loadActivity(task.getId())));
         } catch (SQLException exception) {
-            showError(exception.getMessage());
+            showMessage(exception.getMessage());
         }
     }
 
-    private void addComment() {
-        Task task = getSelectedTask();
-        if (task == null) {
-            showError("Select a task first.");
-            return;
-        }
+    private void createProject() {
+        // Read values from project form and pass them to service layer.
         try {
-            if (commentField.getText().isBlank()) {
-                throw new IllegalArgumentException("Comment is required.");
+            if (projectNameField.getText().trim().isBlank()) {
+                throw new IllegalArgumentException("Project name is required.");
             }
-            taskService.addComment(task.getId(), currentUser, commentField.getText());
-            commentField.setText("");
-            loadCommentsAndActivity(task.getId());
-        } catch (IllegalArgumentException | SQLException exception) {
-            showError(exception.getMessage());
+            projectService.createProject(projectNameField.getText(), projectDescriptionField.getText(), currentUser);
+            projectNameField.setText("");
+            projectDescriptionField.setText("");
+            loadProjects();
+        } catch (Exception exception) {
+            showMessage(exception.getMessage());
         }
     }
 
-    private void openTaskDialog(Task existingTask) {
+    private void addMember() {
+        // Add a project member by asking for an existing user's email.
         Project project = projectList.getSelectedValue();
         if (project == null) {
-            showError("Select a project first.");
+            showMessage("Select a project first.");
             return;
         }
 
-        JTextField titleField = new JTextField(existingTask == null ? "" : existingTask.getTitle());
-        JTextField descriptionField = new JTextField(existingTask == null ? "" : existingTask.getDescription());
-        JComboBox<TaskPriority> priorityBox = new JComboBox<>(TaskPriority.values());
-        JComboBox<TaskStatus> statusBox = new JComboBox<>(TaskStatus.values());
-        JTextField deadlineField = new JTextField(existingTask == null || existingTask.getDeadline() == null ? "" : existingTask.getDeadline().format(INPUT_FORMAT));
-        JComboBox<User> assigneeBox = new JComboBox<>(currentProjectMembers.toArray(new User[0]));
-
-        if (existingTask != null) {
-            priorityBox.setSelectedItem(existingTask.getPriority());
-            statusBox.setSelectedItem(existingTask.getStatus());
-            if (existingTask.getAssignedToId() != null) {
-                for (User member : currentProjectMembers) {
-                    if (member.getId().equals(existingTask.getAssignedToId())) {
-                        assigneeBox.setSelectedItem(member);
-                        break;
-                    }
+        try {
+            String email = JOptionPane.showInputDialog(this, "Enter member email:");
+            if (email == null || email.trim().isBlank()) {
+                return;
+            }
+            List<User> users = authService.loadAllUsers();
+            User selectedUser = null;
+            for (User user : users) {
+                if (user.getEmail().equalsIgnoreCase(email.trim())) {
+                    selectedUser = user;
+                    break;
                 }
             }
-        } else if (!currentProjectMembers.isEmpty()) {
-            assigneeBox.setSelectedIndex(0);
+            if (selectedUser == null) {
+                throw new IllegalArgumentException("User not found.");
+            }
+            projectService.addMember(project, selectedUser, currentUser);
+            projectChanged();
+        } catch (Exception exception) {
+            showMessage(exception.getMessage());
+        }
+    }
+
+    private void openTaskDialog(Task oldTask) {
+        Project project = projectList.getSelectedValue();
+        if (project == null) {
+            showMessage("Select a project first.");
+            return;
+        }
+
+        // Same dialog is reused for both add and edit task.
+        JTextField titleField = new JTextField(oldTask == null ? "" : oldTask.getTitle());
+        JTextField descriptionField = new JTextField(oldTask == null ? "" : oldTask.getDescription());
+        JComboBox<TaskPriority> priorityField = new JComboBox<>(TaskPriority.values());
+        JComboBox<TaskStatus> statusField = new JComboBox<>(TaskStatus.values());
+        JTextField deadlineField = new JTextField(oldTask == null || oldTask.getDeadline() == null ? "" : oldTask.getDeadline().format(formatter));
+        JComboBox<User> assigneeField = new JComboBox<>(currentMembers.toArray(new User[0]));
+
+        if (oldTask != null) {
+            priorityField.setSelectedItem(oldTask.getPriority());
+            statusField.setSelectedItem(oldTask.getStatus());
         }
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
@@ -672,117 +555,161 @@ public class DashboardFrame extends JFrame {
         form.add(new JLabel("Description"));
         form.add(descriptionField);
         form.add(new JLabel("Priority"));
-        form.add(priorityBox);
+        form.add(priorityField);
         form.add(new JLabel("Status"));
-        form.add(statusBox);
-        form.add(new JLabel("Deadline (yyyy-MM-dd HH:mm)"));
+        form.add(statusField);
+        form.add(new JLabel("Deadline yyyy-MM-dd HH:mm"));
         form.add(deadlineField);
         form.add(new JLabel("Assignee"));
-        form.add(assigneeBox);
+        form.add(assigneeField);
 
-        int action = JOptionPane.showConfirmDialog(this, form, existingTask == null ? "Create Task" : "Edit Task", JOptionPane.OK_CANCEL_OPTION);
-        if (action != JOptionPane.OK_OPTION) {
+        int result = JOptionPane.showConfirmDialog(this, form, oldTask == null ? "Add Task" : "Edit Task", JOptionPane.OK_CANCEL_OPTION);
+        if (result != JOptionPane.OK_OPTION) {
             return;
         }
 
         try {
-            Task task = existingTask == null ? new Task() : existingTask;
-            User assignee = (User) assigneeBox.getSelectedItem();
-            LocalDateTime deadline = deadlineField.getText().isBlank() ? null : LocalDateTime.parse(deadlineField.getText().trim(), INPUT_FORMAT);
+            Task task = oldTask == null ? new Task() : oldTask;
             task.setProjectId(project.getId());
             task.setTitle(titleField.getText().trim());
             task.setDescription(descriptionField.getText().trim());
-            task.setPriority((TaskPriority) priorityBox.getSelectedItem());
-            task.setStatus((TaskStatus) statusBox.getSelectedItem());
-            task.setDeadline(deadline);
-            if (assignee != null) {
-                task.setAssignedToId(assignee.getId());
-                task.setAssignedToName(assignee.getName());
+            task.setPriority((TaskPriority) priorityField.getSelectedItem());
+            task.setStatus((TaskStatus) statusField.getSelectedItem());
+            if (!deadlineField.getText().trim().isBlank()) {
+                task.setDeadline(LocalDateTime.parse(deadlineField.getText().trim(), formatter));
+            } else {
+                task.setDeadline(null);
+            }
+            User user = (User) assigneeField.getSelectedItem();
+            if (user != null) {
+                task.setAssignedToId(user.getId());
+                task.setAssignedToName(user.getName());
             }
 
-            if (existingTask == null) {
+            if (oldTask == null) {
                 taskService.createTask(task, currentUser);
             } else {
                 taskService.updateTask(task, currentUser);
             }
-            loadTasksForSelectedProject();
-            loadDashboard(project.getId());
-        } catch (IllegalArgumentException | DateTimeParseException | SQLException exception) {
-            showError("Could not save task. Check inputs.\n" + exception.getMessage());
+
+            loadTasks();
+            loadStats(project.getId());
+        } catch (Exception exception) {
+            showMessage("Task save failed: " + exception.getMessage());
         }
     }
 
-    private void deleteSelectedTask() {
+    private void deleteTask() {
+        // Delete the selected task after confirmation dialog.
         Task task = getSelectedTask();
         if (task == null) {
-            showError("Select a task first.");
+            showMessage("Select a task first.");
             return;
         }
-        int confirm = JOptionPane.showConfirmDialog(this, "Delete task: " + task.getTitle() + "?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Delete selected task?", "Confirm", JOptionPane.YES_NO_OPTION);
         if (confirm != JOptionPane.YES_OPTION) {
             return;
         }
         try {
             taskService.deleteTask(task.getId(), currentUser);
-            loadTasksForSelectedProject();
-            loadDashboard(projectList.getSelectedValue().getId());
-        } catch (IllegalArgumentException | SQLException exception) {
-            showError(exception.getMessage());
+            loadTasks();
+            loadStats(projectList.getSelectedValue().getId());
+        } catch (Exception exception) {
+            showMessage(exception.getMessage());
         }
     }
 
-    private void exportSelectedTask() {
+    private void moveStatus() {
         Task task = getSelectedTask();
         if (task == null) {
-            showError("Select a task first.");
+            showMessage("Select a task first.");
             return;
         }
 
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Save task summary");
-        chooser.setSelectedFile(new java.io.File(task.getTitle().replaceAll("[^a-zA-Z0-9-_]", "_") + ".txt"));
-        chooser.setFileFilter(new FileNameExtensionFilter("Text Files", "txt"));
-        int option = chooser.showSaveDialog(this);
-        if (option != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-
-        Path filePath = chooser.getSelectedFile().toPath();
-        try {
-            Files.writeString(filePath, buildTaskDetails(task));
-            JOptionPane.showMessageDialog(this, "Task exported to:\n" + filePath);
-        } catch (IOException exception) {
-            showError("Could not export task.\n" + exception.getMessage());
-        }
-    }
-
-    private void moveSelectedTaskStatus() {
-        Task task = getSelectedTask();
-        if (task == null) {
-            showError("Select a task first.");
-            return;
-        }
-
+        // Keep workflow simple: TODO -> IN_PROGRESS -> DONE
         TaskStatus nextStatus;
         if (task.getStatus() == TaskStatus.TODO) {
             nextStatus = TaskStatus.IN_PROGRESS;
         } else if (task.getStatus() == TaskStatus.IN_PROGRESS) {
             nextStatus = TaskStatus.DONE;
         } else {
-            showError("Task is already DONE.");
+            showMessage("Task already completed.");
             return;
         }
 
         try {
             taskService.changeStatus(task, nextStatus, currentUser);
-            loadTasksForSelectedProject();
-            loadDashboard(projectList.getSelectedValue().getId());
-        } catch (IllegalArgumentException | SQLException exception) {
-            showError(exception.getMessage());
+            loadTasks();
+            loadStats(projectList.getSelectedValue().getId());
+        } catch (Exception exception) {
+            showMessage(exception.getMessage());
         }
     }
 
+    private void addComment() {
+        // Save a new comment for the currently selected task.
+        Task task = getSelectedTask();
+        if (task == null) {
+            showMessage("Select a task first.");
+            return;
+        }
+        try {
+            if (commentField.getText().trim().isBlank()) {
+                throw new IllegalArgumentException("Comment is empty.");
+            }
+            taskService.addComment(task.getId(), currentUser, commentField.getText());
+            commentField.setText("");
+            taskChanged();
+        } catch (Exception exception) {
+            showMessage(exception.getMessage());
+        }
+    }
+
+    private void showMyTasks() {
+        // Developer shortcut: automatically apply assignee filter for self.
+        for (int i = 0; i < assigneeBox.getItemCount(); i++) {
+            String item = String.valueOf(assigneeBox.getItemAt(i));
+            if (item.startsWith(currentUser.getId() + " | ")) {
+                assigneeBox.setSelectedIndex(i);
+                break;
+            }
+        }
+        loadTasks();
+    }
+
+    private void exportTask() {
+        // Export the selected task's visible details into a simple text file.
+        Task task = getSelectedTask();
+        if (task == null) {
+            showMessage("Select a task first.");
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser();
+        int option = chooser.showSaveDialog(this);
+        if (option != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        try {
+            Files.writeString(Path.of(chooser.getSelectedFile().getAbsolutePath()), taskArea.getText());
+            showMessage("Task exported.");
+        } catch (IOException exception) {
+            showMessage("Export failed.");
+        }
+    }
+
+    private void resetFilters() {
+        // Bring task filters back to default "show all" state.
+        statusBox.setSelectedIndex(0);
+        priorityBox.setSelectedIndex(0);
+        assigneeBox.setSelectedIndex(0);
+        taskSearchField.setText("");
+        loadTasks();
+    }
+
     private Task getSelectedTask() {
+        // Convert currently selected table row back into Task object.
         int row = taskTable.getSelectedRow();
         if (row < 0 || row >= currentTasks.size()) {
             return null;
@@ -790,218 +717,165 @@ public class DashboardFrame extends JFrame {
         return currentTasks.get(row);
     }
 
-    private Long resolveAssigneeFilter() {
-        Object selected = assigneeFilterBox.getSelectedItem();
-        if (selected == null || "ALL".equals(selected)) {
+    private Long getSelectedAssigneeId() {
+        // Assignee combo stores items like "2 | Dev User", so id is parsed from text.
+        Object value = assigneeBox.getSelectedItem();
+        if (value == null || value.toString().equals("ALL")) {
             return null;
         }
-        String value = String.valueOf(selected);
-        return Long.parseLong(value.substring(0, value.indexOf('|')).trim());
+        String text = value.toString();
+        return Long.parseLong(text.substring(0, text.indexOf("|")).trim());
     }
 
-    private void clearWorkspace() {
+    private void clearAllText() {
+        // Used when there is no selected project or no data to show.
         taskTableModel.setRowCount(0);
-        taskDetailsArea.setText("No project selected.");
+        taskArea.setText("");
         commentsArea.setText("");
         activityArea.setText("");
         membersArea.setText("");
-        totalTasksLabel.setText("0");
-        todoTasksLabel.setText("0");
-        inProgressTasksLabel.setText("0");
-        doneTasksLabel.setText("0");
-        highPriorityLabel.setText("0");
-        mediumPriorityLabel.setText("0");
-        lowPriorityLabel.setText("0");
+        totalLabel.setText("0");
+        todoLabel.setText("0");
+        progressLabel.setText("0");
+        doneLabel.setText("0");
     }
 
     private String formatComments(List<Comment> comments) {
+        // Prepare comment list for textarea display.
         StringBuilder builder = new StringBuilder();
-        for (Comment comment : comments) {
-            builder.append(comment.getUserName())
-                .append(" | ")
-                .append(comment.getCreatedAt().format(INPUT_FORMAT))
-                .append('\n')
-                .append(comment.getContent())
-                .append("\n\n");
+        if (comments.isEmpty()) {
+            return "No comments";
         }
-        return builder.length() == 0 ? "No comments yet." : builder.toString();
+        for (Comment comment : comments) {
+            builder.append(comment.getUserName()).append(" - ").append(comment.getCreatedAt().format(formatter)).append("\n");
+            builder.append(comment.getContent()).append("\n\n");
+        }
+        return builder.toString();
     }
 
     private String formatActivity(List<ActivityLogEntry> entries) {
+        // Prepare activity log list for textarea display.
         StringBuilder builder = new StringBuilder();
-        for (ActivityLogEntry entry : entries) {
-            builder.append(entry.getCreatedAt().format(INPUT_FORMAT))
-                .append(" | ")
-                .append(entry.getUserName())
-                .append(" | ")
-                .append(entry.getAction())
-                .append('\n');
+        if (entries.isEmpty()) {
+            return "No activity";
         }
-        return builder.length() == 0 ? "No activity logged yet." : builder.toString();
+        for (ActivityLogEntry entry : entries) {
+            builder.append(entry.getCreatedAt().format(formatter))
+                .append(" - ")
+                .append(entry.getUserName())
+                .append(" - ")
+                .append(entry.getAction())
+                .append("\n");
+        }
+        return builder.toString();
     }
 
     private String formatMembers(List<User> members) {
+        // Prepare member list for textarea display.
         StringBuilder builder = new StringBuilder();
-        for (User member : members) {
-            builder.append(member.getName())
-                .append(" | ")
-                .append(member.getEmail())
-                .append(" | ")
-                .append(member.getRole())
-                .append('\n');
+        if (members.isEmpty()) {
+            return "No members";
         }
-        return builder.length() == 0 ? "No members found." : builder.toString();
+        for (User user : members) {
+            builder.append(user.getName()).append(" - ").append(user.getEmail()).append(" - ").append(user.getRole()).append("\n");
+        }
+        return builder.toString();
+    }
+
+    private String formatUsers(List<User> users) {
+        // Admin user directory text shown in extra tab.
+        StringBuilder builder = new StringBuilder();
+        for (User user : users) {
+            builder.append(user.getId()).append(" - ").append(user.getName()).append(" - ").append(user.getRole()).append("\n");
+        }
+        return builder.toString();
     }
 
     private void logout() {
+        // Return to login screen and close the current dashboard window.
         new LoginFrame().setVisible(true);
         dispose();
     }
 
-    private void configureRoleView() {
+    private void showMessage(String message) {
+        // Small helper to show popup messages in one common style.
+        JOptionPane.showMessageDialog(this, message);
+    }
+
+    private String getWindowTitle() {
+        // Window title changes by role so dashboards feel different.
         if (currentUser.getRole() == Role.ADMIN) {
-            setTitle("Mini Jira Tracker - Admin Control Dashboard");
-            roleAccentColor = new Color(192, 57, 43);
-            roleBadgeLabel.setText("ADMIN CONTROL");
-            workspaceBannerLabel.setText("Admin control center: manage projects, members, users, and all task operations");
-            workspaceRoleLabel.setText("Admin dashboard: project control, members, users, and full task authority");
-            projectActionsLabel.setText("Projects: create + add members");
-            taskActionsLabel.setText("Tasks: full create/edit/delete/status/comment access");
-            roleNotesArea.setText(
-                "ADMIN VIEW\n\n"
-                    + "- Can create projects\n"
-                    + "- Can add members to projects\n"
-                    + "- Can create, edit, delete, and move tasks\n"
-                    + "- Can comment and inspect full activity\n"
-                    + "- Can view all users in User Directory tab"
-            );
-            applyRoleTheme();
-            return;
+            return "Admin Dashboard";
         }
-
         if (currentUser.getRole() == Role.DEVELOPER) {
-            setTitle("Mini Jira Tracker - Developer Workbench");
-            roleAccentColor = new Color(41, 128, 185);
-            roleBadgeLabel.setText("DEVELOPER MODE");
-            workspaceBannerLabel.setText("Developer workbench: focus on assigned work, task progress, and updates");
-            workspaceRoleLabel.setText("Developer dashboard: task execution, comments, status updates");
-            projectActionsLabel.setText("Projects: view only");
-            taskActionsLabel.setText("Tasks: create/edit/delete/status/comment access");
-            roleNotesArea.setText(
-                "DEVELOPER VIEW\n\n"
-                    + "- Cannot create projects\n"
-                    + "- Cannot add members\n"
-                    + "- Can create and update tasks inside visible projects\n"
-                    + "- Can move tasks through TODO -> IN_PROGRESS -> DONE\n"
-                    + "- Can add progress comments"
-            );
-            createProjectButton.setEnabled(false);
-            addMemberButton.setEnabled(false);
-            applyRoleTheme();
-            return;
+            return "Developer Dashboard";
         }
-
-        setTitle("Mini Jira Tracker - Viewer Review Console");
-        roleAccentColor = new Color(39, 174, 96);
-        roleBadgeLabel.setText("VIEWER CONSOLE");
-        workspaceBannerLabel.setText("Viewer review console: read-only project, task, member, and activity monitoring");
-        workspaceRoleLabel.setText("Viewer dashboard: read-only access for monitoring and viva demo");
-        projectActionsLabel.setText("Projects: view only");
-        taskActionsLabel.setText("Tasks: read only");
-        roleNotesArea.setText(
-            "VIEWER VIEW\n\n"
-                + "- Cannot create projects\n"
-                + "- Cannot add members\n"
-                + "- Cannot create, edit, delete, or move tasks\n"
-                + "- Cannot add comments\n"
-                + "- Can review task details, comments, activity log, and members"
-        );
-        createProjectButton.setEnabled(false);
-        addMemberButton.setEnabled(false);
-        addTaskButton.setEnabled(false);
-        editTaskButton.setEnabled(false);
-        deleteTaskButton.setEnabled(false);
-        moveStatusButton.setEnabled(false);
-        commentField.setEditable(false);
-        applyRoleTheme();
+        return "Viewer Dashboard";
     }
 
-    private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "Mini Jira", JOptionPane.ERROR_MESSAGE);
+    private String getRoleBannerText() {
+        // Role banner text changes by role.
+        if (currentUser.getRole() == Role.ADMIN) {
+            return "ADMIN CONTROL PANEL";
+        }
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            return "DEVELOPER WORKSPACE";
+        }
+        return "VIEWER READ ONLY";
     }
 
-    private String formatUsers(List<User> users) {
-        StringBuilder builder = new StringBuilder();
-        for (User user : users) {
-            builder.append(user.getId())
-                .append(" | ")
-                .append(user.getName())
-                .append(" | ")
-                .append(user.getEmail())
-                .append(" | ")
-                .append(user.getRole())
-                .append('\n');
+    private Color getRoleColor() {
+        // Role color is reused in banner and summary cards.
+        if (currentUser.getRole() == Role.ADMIN) {
+            return new Color(192, 57, 43);
         }
-        return builder.length() == 0 ? "No users found." : builder.toString();
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            return new Color(41, 128, 185);
+        }
+        return new Color(39, 174, 96);
     }
 
-    private void applyRoleTheme() {
-        if (rootPanel != null) {
-            rootPanel.setBackground(new Color(
-                Math.min(roleAccentColor.getRed() + 210, 245),
-                Math.min(roleAccentColor.getGreen() + 210, 245),
-                Math.min(roleAccentColor.getBlue() + 210, 245)
-            ));
+    private String getProjectsPanelTitle() {
+        // Left project section title changes by role.
+        if (currentUser.getRole() == Role.ADMIN) {
+            return "Project Management";
         }
-        roleBadgeLabel.setBackground(roleAccentColor);
-        workspaceRoleLabel.setForeground(roleAccentColor);
-        workspaceBannerLabel.setForeground(roleAccentColor.darker());
-        projectActionsLabel.setForeground(roleAccentColor);
-        taskActionsLabel.setForeground(roleAccentColor);
-        totalTasksLabel.setForeground(roleAccentColor);
-        todoTasksLabel.setForeground(roleAccentColor);
-        inProgressTasksLabel.setForeground(roleAccentColor);
-        doneTasksLabel.setForeground(roleAccentColor);
-        highPriorityLabel.setForeground(roleAccentColor);
-        mediumPriorityLabel.setForeground(roleAccentColor);
-        lowPriorityLabel.setForeground(roleAccentColor);
-        taskTable.setSelectionBackground(roleAccentColor);
-        taskTable.setSelectionForeground(Color.WHITE);
-        applyAccentToPanel(infoPanel);
-        applyAccentToPanel(statsPanel);
-        applyAccentToPanel(taskPanel);
-        applyAccentToTabs();
-        applyAccentToTitledArea(roleNotesArea, "Role Guidance");
-        applyAccentToTitledArea(membersArea, "Project Members");
-        applyAccentToTitledArea(userDirectoryArea, "User Directory");
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            return "Assigned Projects";
+        }
+        return "Project Viewer";
     }
 
-    private void applyAccentToPanel(JPanel panel) {
-        if (panel != null) {
-            Border border = panel.getBorder();
-            if (border instanceof TitledBorder titledBorder) {
-                titledBorder.setTitleColor(roleAccentColor);
-            }
-            panel.setBackground(Color.WHITE);
+    private String getStatsPanelTitle() {
+        // Summary card panel title changes by role.
+        if (currentUser.getRole() == Role.ADMIN) {
+            return "Project Summary";
         }
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            return "Work Summary";
+        }
+        return "Read Only Summary";
     }
 
-    private void applyAccentToTabs() {
-        if (detailsTabs != null) {
-            detailsTabs.setForeground(roleAccentColor.darker());
-            if (detailsTabs.getBorder() instanceof TitledBorder titledBorder) {
-                titledBorder.setTitleColor(roleAccentColor);
-            }
+    private String getTaskPanelTitle() {
+        // Task panel title changes by role.
+        if (currentUser.getRole() == Role.ADMIN) {
+            return "Task Administration";
         }
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            return "Task Workbench";
+        }
+        return "Task Review";
     }
 
-    private void applyAccentToTitledArea(JTextArea area, String fallbackTitle) {
-        if (area.getParent() instanceof javax.swing.JViewport viewport
-            && viewport.getParent() instanceof JScrollPane scrollPane
-            && scrollPane.getBorder() instanceof TitledBorder titledBorder) {
-            titledBorder.setTitleColor(roleAccentColor);
+    private String getExtraTabText() {
+        // Fallback text for the role-specific extra tab.
+        if (currentUser.getRole() == Role.ADMIN) {
+            return "Admin can review all users from this tab.";
         }
-        area.setCaretColor(roleAccentColor);
-        area.setSelectionColor(roleAccentColor.brighter());
+        if (currentUser.getRole() == Role.DEVELOPER) {
+            return "Developer can search tasks, update status, and add comments.";
+        }
+        return "Viewer can only read data and monitor project progress.";
     }
 }

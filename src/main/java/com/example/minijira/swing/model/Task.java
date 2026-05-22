@@ -2,6 +2,7 @@ package com.example.minijira.swing.model;
 
 import java.time.LocalDateTime;
 
+// Represents one task belonging to a project.
 public class Task {
     private Long id;
     private String title;
@@ -10,10 +11,13 @@ public class Task {
     private TaskPriority priority;
     private LocalDateTime deadline;
     private Long projectId;
+    // Assignee details are used in task table and filters.
     private Long assignedToId;
     private String assignedToName;
+    // Creator details help show who created the task.
     private Long createdById;
     private String createdByName;
+    // Timestamps are useful for task history and display.
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

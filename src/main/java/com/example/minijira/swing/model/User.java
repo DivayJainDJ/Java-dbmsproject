@@ -1,10 +1,12 @@
 package com.example.minijira.swing.model;
 
+// Represents one system user such as Admin, Developer, or Viewer.
 public class User {
     private Long id;
     private String name;
     private String email;
     private String password;
+    // Role decides which dashboard actions are allowed.
     private Role role;
 
     public Long getId() {
@@ -49,6 +51,7 @@ public class User {
 
     @Override
     public String toString() {
+        // Used in combo boxes and user selections inside the UI.
         return name + " (" + role + ")";
     }
 }

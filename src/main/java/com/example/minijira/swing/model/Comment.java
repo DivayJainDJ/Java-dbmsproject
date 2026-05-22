@@ -2,6 +2,7 @@ package com.example.minijira.swing.model;
 
 import java.time.LocalDateTime;
 
+// Represents one comment added to a task.
 public class Comment {
     private Long id;
     private Long taskId;

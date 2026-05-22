@@ -1,20 +1,18 @@
 package com.example.minijira.swing.repository;
 
 import com.example.minijira.swing.db.DatabaseConnection;
-import com.example.minijira.swing.model.ActivityLogEntry;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import com.example.minijira.swing.model.*;
+import java.sql.*;
+import java.util.*;
 
 public class ActivityLogRepository {
 
     public void save(Long taskId, Long userId, String action) throws SQLException {
+        // Save a history record whenever an important task action happens.
         String sql = "INSERT INTO activity_log(task_id, user_id, action) VALUES (?, ?, ?)";
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
+            // Save which task changed, who changed it, and what action happened.
             statement.setLong(1, taskId);
             statement.setLong(2, userId);
             statement.setString(3, action);
@@ -23,6 +21,7 @@ public class ActivityLogRepository {
     }
 
     public List<ActivityLogEntry> findByTaskId(Long taskId) throws SQLException {
+        // Load task history in newest-first order.
         List<ActivityLogEntry> entries = new ArrayList<>();
         String sql = """
             SELECT a.id, a.task_id, a.user_id, a.action, a.created_at, u.name AS user_name
@@ -35,6 +34,7 @@ public class ActivityLogRepository {
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, taskId);
             try (ResultSet resultSet = statement.executeQuery()) {
+                // Convert every row into an ActivityLogEntry object.
                 while (resultSet.next()) {
                     ActivityLogEntry entry = new ActivityLogEntry();
                     entry.setId(resultSet.getLong("id"));
